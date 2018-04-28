@@ -8,18 +8,21 @@ from SwingyMonkey import SwingyMonkey
 
 class Learner(object):
 
-    def __init__(self, iterations):
+    def __init__(self, iterations, epsilon):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
         self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
         self.iterations = iterations
+        self.epsilon = epsilon
+        self.Q = np.zeros((400/binsize['height'], 600/binsize['width'], 25, 2))
 
-    def reset(self):
-        self.last_state  = None
-        self.last_action = None
-        self.last_reward = None
-        self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
+    # def reset(self, iterations, epsilon):
+    #     self.last_state  = None
+    #     self.last_action = None
+    #     self.last_reward = None
+    #     self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
+    #     self.epsilon = epsilon
 
     def indices(self, state):
         height = int((state['tree']['top'] - state['monkey']['top']) / binsize['height'])
@@ -31,13 +34,22 @@ class Learner(object):
 
         # You might do some learning here based on the current state and the last state.
 
-        # Return 0 to swing and 1 to jump.
 
-        new_action = npr.rand() < 0.1
-        new_state  = state
+        new_state = self.indices(state)
+        self.iterations += 1
+        new_action = np.argmax(self.Q[new_state])
+
+        if (self.last_state is not None and 
+        self.last_action is not None and 
+        self.last_reward is not None):
+            last_state = self.last_state
+            last_action = self.last_action
+            last_reward = self.last_reward
 
         self.last_action = new_action
         self.last_state  = new_state
+
+        self.Q[s][a] += self.epsilon * (last_reward + (max(self.Q[new_state])) - self.Q[s][a])
 
         return self.last_action
 
