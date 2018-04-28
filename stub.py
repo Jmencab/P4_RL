@@ -7,29 +7,30 @@ from SwingyMonkey import SwingyMonkey
 
 
 class Learner(object):
-    '''
-    This agent jumps randomly.
-    '''
 
-    def __init__(self):
+    def __init__(self, iterations):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
+        self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
+        self.iterations = iterations
 
     def reset(self):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
+        self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
+
+    def indices(self, state):
+        height = int((state['tree']['top'] - state['monkey']['top']) / binsize['height'])
+        width = int(state['tree']['dist'] / binsize['width'])
+        vel = int(state['monkey']['vel'] / binsize['vel'])
+        return height, width, vel
 
     def action_callback(self, state):
-        '''
-        Implement this function to learn things and take actions.
-        Return 0 if you don't want to jump and 1 if you do.
-        '''
 
         # You might do some learning here based on the current state and the last state.
 
-        # You'll need to select and action and return it.
         # Return 0 to swing and 1 to jump.
 
         new_action = npr.rand() < 0.1
@@ -61,7 +62,7 @@ def run_games(learner, hist, iters = 100, t_len = 100):
         # Loop until you hit something.
         while swing.game_loop():
             pass
-        
+
         # Save score history.
         hist.append(swing.score)
 
@@ -79,10 +80,10 @@ if __name__ == '__main__':
 	# Empty list to save history.
 	hist = []
 
-	# Run games. 
+	# Run games.
 	run_games(agent, hist, 20, 10)
 
-	# Save history. 
+	# Save history.
 	np.save('hist',np.array(hist))
 
 
