@@ -12,45 +12,54 @@ class Learner(object):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
-        self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
+        self.binsize = {'height' : 40, 'width': 30, 'vel' : 5 }
         self.iterations = iterations
         self.epsilon = epsilon
-        self.Q = np.zeros((400/binsize['height'], 600/binsize['width'], 25, 2))
+        self.Q = np.zeros((400/self.binsize['height'], 600/self.binsize['width'], int(100/self.binsize['vel']), 2))
 
-    # def reset(self, iterations, epsilon):
-    #     self.last_state  = None
-    #     self.last_action = None
-    #     self.last_reward = None
-    #     self.binsize = {'height' : 10, 'width': 10, 'vel' : 5 }
-    #     self.epsilon = epsilon
+    def reset(self, iterations, epsilon):
+        self.last_state  = None
+        self.last_action = None
+        # self.last_reward = None
+        self.iterations = iterations
+        self.epsilon = epsilon / 1.01
+        # self.Q = np.zeros((400/self.binsize['height'], 600/self.binsize['width'], 25, 2))
 
     def indices(self, state):
-        height = int((state['tree']['top'] - state['monkey']['top']) / binsize['height'])
-        width = int(state['tree']['dist'] / binsize['width'])
-        vel = int(state['monkey']['vel'] / binsize['vel'])
+        height = int((state['tree']['top'] - state['monkey']['top']) / self.binsize['height'])
+        width = int(state['tree']['dist'] / self.binsize['width'])
+        vel = int((state['monkey']['vel'] + 50) / self.binsize['vel'])
         return height, width, vel
 
     def action_callback(self, state):
 
         # You might do some learning here based on the current state and the last state.
-
-
         new_state = self.indices(state)
         self.iterations += 1
-        new_action = np.argmax(self.Q[new_state])
+        if npr.random() < .1:
+            if npr.random() < .5:
+                new_action = 0
+            else:
+                new_action = 1
+        else:
+            new_action = np.argmax(self.Q[new_state])
 
-        if (self.last_state is not None and 
-        self.last_action is not None and 
-        self.last_reward is not None):
-            last_state = self.last_state
-            last_action = self.last_action
-            last_reward = self.last_reward
+        if (self.last_state is None and
+            self.last_action is None and
+            self.last_reward is None):
+            self.last_state = new_state
+            self.last_action = new_action
+            self.last_reward = 0
+
+        last_state = self.last_state
+        last_action = self.last_action
+        last_reward = self.last_reward
 
         self.last_action = new_action
         self.last_state  = new_state
 
-        self.Q[s][a] += self.epsilon * (last_reward + (max(self.Q[new_state])) - self.Q[s][a])
-
+        self.Q[last_state][last_action] += self.epsilon * (last_reward + (max(self.Q[new_state])) - self.Q[last_state][last_action])
+        print self.Q.max()
         return self.last_action
 
     def reward_callback(self, reward):
@@ -79,7 +88,8 @@ def run_games(learner, hist, iters = 100, t_len = 100):
         hist.append(swing.score)
 
         # Reset the state of the learner.
-        learner.reset()
+        learner.reset(5, 0.5)
+
     pg.quit()
     return
 
@@ -87,13 +97,13 @@ def run_games(learner, hist, iters = 100, t_len = 100):
 if __name__ == '__main__':
 
 	# Select agent.
-	agent = Learner()
+	agent = Learner(5, 0.5)
 
 	# Empty list to save history.
 	hist = []
 
 	# Run games.
-	run_games(agent, hist, 20, 10)
+	run_games(agent, hist, 200, 10)
 
 	# Save history.
 	np.save('hist',np.array(hist))
