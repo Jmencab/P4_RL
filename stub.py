@@ -3,6 +3,8 @@ import numpy as np
 import numpy.random as npr
 import pygame as pg
 from collections import defaultdict
+from pprint import pprint
+from math import exp
 
 
 from SwingyMonkey import SwingyMonkey
@@ -10,81 +12,86 @@ from SwingyMonkey import SwingyMonkey
 
 class Learner(object):
 
-    def __init__(self, iterations, epsilon, alpha):
+    def __init__(self,epsilon,alpha,gamma):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
-        self.binsize = {'height' : 10, 'width': 20, 'vel' : 10 }
-        self.iterations = iterations
+        self.binsize = {'height' : 20, 'width': 30, 'vel' : 10 }
         self.epsilon = epsilon
         self.alpha = alpha
-        self.Q = np.zeros((400/self.binsize['height'], 600/self.binsize['width'], int(100/self.binsize['vel']), 2))
+        self.gamma  = gamma
+        self.Q  = dict()
 
-    def reset(self, iterations, epsilon, alpha):
+    def reset(self, epsilon, alpha):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
-        self.epsilon = epsilon / 1.01
-        self.alpha = alpha / 1.1
+        self.epsilon = epsilon
+        self.alpha = alpha
 
     def indices(self, state):
-        height = int((state['monkey']['top'] - state['tree']['top'] + 200) / self.binsize['height'])-1
-        width = int(state['tree']['dist'] / self.binsize['width'])-1
-        vel = int((state['monkey']['vel'] + 50) / self.binsize['vel'])-1
-        if vel > 10 :
-            vel = 9
-        elif vel < 0:
-            vel = 0
-        return (height, width, vel)
+
+        height = int((state['monkey']['top'] - state['tree']['top']) / self.binsize['height'])
+        width = int(state['tree']['dist'] / self.binsize['width'])
+        vel = int(state['monkey']['vel'] / self.binsize['vel'])
+        return height, width, vel
+
+    def decay(self, initial, lam, time):
+        return initial * exp(-lam*time)
 
     def action_callback(self, state):
-        new_state = self.indices(state)
-
-        self.iterations += 1
-        new_action = np.argmax(self.Q[new_state[0]][new_state[1]][new_state[2]])
-        print self.epsilon
-        if npr.random() < self.epsilon:
-            if new_action == 0:
-                new_action = 1
-            else:
-                new_action = 0
-
+        # Observe initial state/new state depending on first or not
+        h,w,v = self.indices(state)
+        # Need to observe value first, add to dictionary
+        # This is like the base case
         if (self.last_state is None and
-            self.last_action is None and
-            self.last_reward is None):
-            self.last_state = new_state
-            self.last_action = new_action
-            self.last_reward = 0
+        self.last_action is None and
+        self.last_reward is None):
+            self.last_state = (h,w,v)
+            if not self.Q.get((h,w,v,0)):
+                self.Q[(h,w,v,0)] = 0
+            if not self.Q.get((h,w,v,1)):
+                self.Q[(h,w,v,1)] = 0
+            action = np.argmax((self.Q.get((h,w,v,0), self.Q.get((h,w,v,1)))))
+            self.last_action = action
+            return action
 
-        last_state = self.last_state
-        last_action = self.last_action
-        last_reward = self.last_reward
+        #Figure out what action to take
+        swing_Q = self.Q.get((h,w,v,0))
+        if not swing_Q:
+            swing_Q = 0
+            self.Q[(h,w,v,0)] = 0
+        jump_Q = self.Q.get((h,w,v,1))
+        if not jump_Q:
+            jump_Q = 0
+            self.Q[(h,w,v,1)] = 0
+        new_action = 0
+        prob = npr.random()
+        # Do epsilon greedy here to explore
+        if prob < self.epsilon:
+            coin_toss = npr.random()
+            if coin_toss <= .5:
+                # choose a random action, note they might be None
+                new_action = 1
+        else:
+            if jump_Q > swing_Q:
+                new_action = 1
 
+        # Get last state and last reward
+        sh, sw, sv = self.last_state
+        r = self.last_reward
+        a = self.last_action
+        # Calculate Q_target = r + gamma*max[Q(s',A)]
+        Q_target = r + self.gamma*max(self.Q[(h,w,v,0)], self.Q[(h,w,v,1)])
+        # Calculate Q_delta = Q_target - Q(s,a)
+        Q_delta = Q_target - self.Q[(sh,sw,sv,a)]
+        # Add alpha*Q_delta to Q(s,a) and update
+        self.Q[(sh,sw,sv,a)] = self.Q[(sh,sw,sv,a)] + (self.alpha * Q_delta)
+        #update global variables
+        self.last_state = (h,w,v)
         self.last_action = new_action
-        self.last_state  = new_state
+        return new_action
 
-        self.Q[last_state[0]][last_state[1]][last_state[2]][last_action] += self.alpha * (last_reward + (max(self.Q[new_state[0]][new_state[1]][new_state[2]])) - self.Q[last_state[0]][last_state[1]][last_state[2]][last_action])
-        # print self.Q[last_state[0]][last_state[1]][last_state[2]][last_action] #self.Q.max()
-        return self.last_action
-
-
-
-
-        # if (self.last_state is not None and
-        #     self.last_action is not None and
-        #     self.last_reward is not None):
-        #     s = self.last_state
-        #     a = self.last_action
-        #     r = self.last_reward
-        #     sn = new_state
-
-        #     self.Q[s[0]][s[1]][s[2]][a] += self.epsilon * (r + (max(self.Q[sn[0]][sn[1]][sn[2]])) - self.Q[s[0]][s[1]][s[2]][a])
-
-        # self.last_action = new_action
-        # self.last_state = new_state
-
-        # print self.Q.max()
-        # return new_action
 
     def reward_callback(self, reward):
         '''This gets called so you can see what reward you get.'''
@@ -92,10 +99,11 @@ class Learner(object):
         self.last_reward = reward
 
 
-def run_games(learner, hist, iters = 300, t_len = 30):
+def run_games(learner,iters = 300, t_len = 30):
     '''
     Driver function to simulate learning by having the agent play a sequence of games.
     '''
+    scores = np.zeros(iters)
     for ii in range(iters):
         # Make a new monkey object.
         swing = SwingyMonkey(sound=False,                  # Don't play sounds.
@@ -108,28 +116,52 @@ def run_games(learner, hist, iters = 300, t_len = 30):
         while swing.game_loop():
             pass
 
-        # Save score history.
-        hist.append(swing.score)
 
+        # print "-------------------------"
+        # print "R:"
+        # print learner.last_reward
+        # print "S:"
+        # print learner.last_state
+        # print "A:" 
+        # print learner.last_action
+        # print "Q:"
+        # pprint(learner.Q)
+
+        print learner.epsilon
+        #TODO: Reflect Negative Reward
+        Q_target = learner.last_reward 
+        # Calculate Q_delta = Q_target - Q(s,a)
+        sh,sw,sv = learner.last_state
+        a = learner.last_action
+        Q_delta = Q_target - learner.Q[(sh,sw,sv,a)]
+        # Add alpha*Q_delta to Q(s,a) and update
+        learner.Q[(sh,sw,sv,a)] = learner.Q[(sh,sw,sv,a)] + (learner.alpha * Q_delta)
         # Reset the state of the learner.
-        learner.reset(5, learner.epsilon, learner.alpha)
 
+        scores[ii] = swing.score
+        learner.reset(learner.decay(1, .015, ii), learner.decay(1, .015, ii))
+
+    print "-------------------------"
+    print "R:"
+    print learner.last_reward
+    print "S:"
+    print learner.last_state
+    print "A:" 
+    print learner.last_action
+    print "Q:"
+    pprint(learner.Q)
     pg.quit()
+
+    # pipe results of games
     return
 
 
 if __name__ == '__main__':
 
 	# Select agent.
-	agent = Learner(5, 0.1, .9)
-
-	# Empty list to save history.
-	hist = []
-
+	agent = Learner(.9,.9, 1)
 	# Run games.
-	run_games(agent, hist, 400, 10)
+	run_games(agent, 400, 10)
 
-	# Save history.
-	np.save('hist',np.array(hist))
 
 
