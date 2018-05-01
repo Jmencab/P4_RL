@@ -175,7 +175,7 @@ def run_games(learner,iters = 300, t_len = 30):
     pg.quit()
 
     # pipe results of games
-    return np.mean(scores)
+    return np.mean(scores[200:]), np.max(scores[200:])
 
 
 if __name__ == '__main__':
@@ -183,8 +183,8 @@ if __name__ == '__main__':
   # Select agent.
   agent = Learner(.9,.9, 1, int(sys.argv[1]))
   # Run games.
-  avg = run_games(agent, 400, 10)
+  avg, maxi = run_games(agent, 400, 10)
   f = open('max_tuning.txt', "a")
-  s = sys.argv[1] + ',' + str(np.mean(avg)) + '\n'
+  s = sys.argv[1] + ',' + str(avg) + ',' + str(maxi)+'\n'
   f.write(s)
   f.close()
