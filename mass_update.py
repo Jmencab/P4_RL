@@ -35,7 +35,7 @@ class Learner(object):
             a, b, c, d = s
             e, f, g, h = t
             if d == h:
-                return abs(a-e)^2 + abs(b-f)^2 + abs(c-g)^2
+                return (a-e)**2 + (b-f)**2 + (c-g)**2
             else:
                 return np.inf
         states = self.Q.keys()
@@ -53,6 +53,19 @@ class Learner(object):
         else:
             return self.alpha * (sum(value)/len(value))
 
+    def mass_update(self, Q_delta, sh, sw, sv, a):
+        MAX = 2
+        for i in range(MAX):
+            for j in range(MAX):
+                for k in range(MAX):
+                    self.Q[(sh+i,sw+j,sv+k,a)] = self.Q[(sh+i,sw+j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh+i,sw+j,sv-k,a)] = self.Q[(sh+i,sw+j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh-i,sw+j,sv+k,a)] = self.Q[(sh-i,sw+j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh+i,sw-j,sv+k,a)] = self.Q[(sh+i,sw-j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh-i,sw-j,sv+k,a)] = self.Q[(sh-i,sw-j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh-i,sw+j,sv-k,a)] = self.Q[(sh-i,sw+j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh+i,sw-j,sv-k,a)] = self.Q[(sh+i,sw-j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    self.Q[(sh-i,sw-j,sv-k,a)] = self.Q[(sh-i,sw-j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
 
     def indices(self, state):
 
@@ -118,6 +131,7 @@ class Learner(object):
         Q_delta = Q_target - self.Q[(sh,sw,sv,a)]
         # Add alpha*Q_delta to Q(s,a) and update
         self.Q[(sh,sw,sv,a)] = self.Q[(sh,sw,sv,a)] + (self.alpha * Q_delta)
+        self.mass_update(Q_delta, sh, sw, sv, a)
         #update global variables
         self.last_state = (h,w,v)
         self.last_action = new_action
