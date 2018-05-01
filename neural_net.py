@@ -3,6 +3,7 @@ import numpy as np
 import numpy.random as npr
 import pygame as pg
 import sys
+from math import exp
 from sklearn.neural_network import MLPRegressor as mlp
 
 from SwingyMonkey import SwingyMonkey
@@ -17,9 +18,9 @@ class Learner(object):
         self.alpha = alpha
         self.gamma = gamma
         self.first = True
-        self.X = np.zeros((size,4))
-        self.Y = np.zeros(size)
-        self.nn = mlp(activation = 'logistic', warm_start = True)
+        self.X = np.random.rand(size,4)
+        self.Y = np.random.rand(size)
+        self.nn = mlp(activation = 'logistic')
         self.iteration = 0
         self.size = size
 
@@ -39,9 +40,8 @@ class Learner(object):
         return np.array((height, width, vel))
 
     def max_action(self, h, w, v):
-    	swing = self.nn.predict((h,w,v,0))
-    	jump = self.nn.predict((h,w,v,1))
-    	return np.argmax((swing, jump))
+    	action_r = self.nn.predict([[h,w,v,0], [h,w,v,1]])
+    	return np.argmax(action_r)
 
     def decay(self, initial, lam, time):
     	return initial * exp(-lam*time)
@@ -96,7 +96,7 @@ class Learner(object):
         self.last_reward = reward
 
 
-def run_games(learner,iters = 300, t_len = 30):
+def run_games(learner,iters = 300, t_len = 10):
     '''
     Driver function to simulate learning by having the agent play a sequence of games.
     '''
@@ -132,22 +132,21 @@ def run_games(learner,iters = 300, t_len = 30):
         learner.X[index] = np.array((sh,sw,sv,learner.last_action))
         learner.Y[index] = learner.last_reward + learner.gamma*(learner.max_action(sh,sw,sv))
         learner.nn.fit(learner.X, learner.Y)
-        learner.reset(learner.decay(.2, .015, ii), learner.decay(.2, .015, ii))
+        learner.reset(learner.decay(.2, .0015, ii), learner.decay(.2, .0015, ii))
 
     pg.quit()
-
-	return np.mean(scores[-200:]), np.max(scores[-200:])
+    return np.mean(scores[-200:]), np.max(scores[-200:])
 
 
 
 if __name__ == '__main__':
 
   # Select agent.
-  agent = Learner(float(sys.argv[1]),float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]))
+  agent = Learner(float(sys.argv[1]),float(sys.argv[2]), float(sys.argv[3]), int(sys.argv[4]))
   # Run games.
-  avg,maxi = run_games(agent, sys.argv[5], 10)
+  avg, maximum = run_games(agent, int(sys.argv[5]), 10)
   f = open('neural_net.csv', "a")
-  s = sys.argv[1] + ','+ sys.argv[2] + ',' sys.argv[3] + ',' + sys.argv[4] + ',' + sys.argv[5] + ','+ str(avg) + ',' + str(maxi)+'\n'
+  s = sys.argv[1] + ',' + sys.argv[2] + ',' + sys.argv[3] + ',' + sys.argv[4] + ',' + sys.argv[5] + ',' + str(avg) + ',' + str(maximum) + "\n"
   f.write(s)
   f.close()
 
