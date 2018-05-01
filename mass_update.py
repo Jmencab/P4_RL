@@ -54,18 +54,15 @@ class Learner(object):
             return self.alpha * (sum(value)/len(value))
 
     def mass_update(self, Q_delta, sh, sw, sv, a):
-        MAX = 2
+        MAX = 5
         for i in range(MAX):
             for j in range(MAX):
                 for k in range(MAX):
-                    self.Q[(sh+i,sw+j,sv+k,a)] = self.Q[(sh+i,sw+j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh+i,sw+j,sv-k,a)] = self.Q[(sh+i,sw+j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh-i,sw+j,sv+k,a)] = self.Q[(sh-i,sw+j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh+i,sw-j,sv+k,a)] = self.Q[(sh+i,sw-j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh-i,sw-j,sv+k,a)] = self.Q[(sh-i,sw-j,sv+k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh-i,sw+j,sv-k,a)] = self.Q[(sh-i,sw+j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh+i,sw-j,sv-k,a)] = self.Q[(sh+i,sw-j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
-                    self.Q[(sh-i,sw-j,sv-k,a)] = self.Q[(sh-i,sw-j,sv-k,a)] + (self.alpha/(i+j+k+2) * Q_delta)
+                    lst = [(sh+i,sw+j,sv+k,a), (sh+i,sw+j,sv-k,a), (sh-i,sw+j,sv+k,a), (sh+i,sw-j,sv-k,a),
+                           (sh+i,sw-j,sv+k,a), (sh-i,sw-j,sv+k,a), (sh-i,sw+j,sv-k,a), (sh-i,sw-j,sv-k,a)]
+                    for state in lst:
+                        if self.Q.get(state) != None:
+                            self.Q[state] = self.Q[state] + (self.alpha/(i**2+j**2+k**2+2) * Q_delta)
 
     def indices(self, state):
 
