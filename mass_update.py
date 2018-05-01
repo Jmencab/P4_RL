@@ -5,6 +5,7 @@ import pygame as pg
 from collections import defaultdict
 from pprint import pprint
 from math import exp
+import sys
 
 
 from SwingyMonkey import SwingyMonkey
@@ -12,7 +13,7 @@ from SwingyMonkey import SwingyMonkey
 
 class Learner(object):
 
-    def __init__(self,epsilon,alpha,gamma):
+    def __init__(self,epsilon,alpha,gamma, MAX=5):
         self.last_state  = None
         self.last_action = None
         self.last_reward = None
@@ -21,6 +22,7 @@ class Learner(object):
         self.alpha = alpha
         self.gamma  = gamma
         self.Q  = dict()
+        self.MAX = MAX
 
     def reset(self, epsilon, alpha):
         self.last_state  = None
@@ -30,12 +32,11 @@ class Learner(object):
         self.alpha = alpha
 
     def closest(self, height, width, vel, act):
-        MAX = 5
         def dist(s, t):
             a, b, c, d = s
             e, f, g, h = t
             if d == h:
-                return abs(a-e)^2 + abs(b-f)^2 + abs(c-g)^2
+                return (a-e)**2 + (b-f)**2 + (c-g)**2
             else:
                 return np.inf
         states = self.Q.keys()
@@ -43,11 +44,11 @@ class Learner(object):
         value = []
         for state in states:
             d = dist(state, (height, width, vel, act))
-            if d <= min_dist and d < MAX:
+            if d <= min_dist and d < self.MAX:
                 min_dist = d
                 a,b,c,d = state
                 value.append(self.Q[state])
-        print value
+        # print value
         if len(value) == 0:
             return 0
         else:
@@ -146,38 +147,44 @@ def run_games(learner,iters = 300, t_len = 30):
         # Loop until you hit something.
         while swing.game_loop():
             pass
-
-        #TODO: Reflect Negative Reward
-        Q_target = learner.last_reward
-        # Calculate Q_delta = Q_target - Q(s,a)
-        sh,sw,sv = learner.last_state
-        a = learner.last_action
-        Q_delta = Q_target - learner.Q[(sh,sw,sv,a)]
-        # Add alpha*Q_delta to Q(s,a) and update
-        learner.Q[(sh,sw,sv,a)] = learner.Q[(sh,sw,sv,a)] + (learner.alpha * Q_delta)
-        # Reset the state of the learner.
+        #################################################
+        #With max, seems to do better without the below:
+        #################################################
+        # #TODO: Reflect Negative Reward
+        # Q_target = learner.last_reward
+        # # Calculate Q_delta = Q_target - Q(s,a)
+        # sh,sw,sv = learner.last_state
+        # a = learner.last_action
+        # Q_delta = Q_target - learner.Q[(sh,sw,sv,a)]
+        # # Add alpha*Q_delta to Q(s,a) and update
+        # learner.Q[(sh,sw,sv,a)] = learner.Q[(sh,sw,sv,a)] + (learner.alpha * Q_delta)
+        # # Reset the state of the learner.
 
         scores[ii] = swing.score
         learner.reset(learner.decay(1, .015, ii), learner.decay(1, .015, ii))
 
-    print "-------------------------"
-    print "R:"
-    print learner.last_reward
-    print "S:"
-    print learner.last_state
-    print "A:"
-    print learner.last_action
-    print "Q:"
-    pprint(learner.Q)
+    # print "-------------------------"
+    # print "R:"
+    # print learner.last_reward
+    # print "S:"
+    # print learner.last_state
+    # print "A:"
+    # print learner.last_action
+    # print "Q:"
+    # pprint(learner.Q)
     pg.quit()
 
     # pipe results of games
-    return
+    return np.mean(scores)
 
 
 if __name__ == '__main__':
 
   # Select agent.
-  agent = Learner(.9,.9, 1)
+  agent = Learner(.9,.9, 1, int(sys.argv[1]))
   # Run games.
-  run_games(agent, 400, 10)
+  avg = run_games(agent, 400, 10)
+  f = open('max_tuning.txt', "a")
+  s = sys.argv[1] + ',' + str(np.mean(avg)) + '\n'
+  f.write(s)
+  f.close()
