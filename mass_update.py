@@ -54,6 +54,16 @@ class Learner(object):
         else:
             return self.alpha * (sum(value)/len(value))
 
+    def mass_update(self, Q_delta, sh, sw, sv, a):
+        MAX = 5
+        for i in range(MAX):
+            for j in range(MAX):
+                for k in range(MAX):
+                    lst = [(sh+i,sw+j,sv+k,a), (sh+i,sw+j,sv-k,a), (sh-i,sw+j,sv+k,a), (sh+i,sw-j,sv-k,a),
+                           (sh+i,sw-j,sv+k,a), (sh-i,sw-j,sv+k,a), (sh-i,sw+j,sv-k,a), (sh-i,sw-j,sv-k,a)]
+                    for state in lst:
+                        if self.Q.get(state) != None:
+                            self.Q[state] = self.Q[state] + (self.alpha/(i**2+j**2+k**2+2) * Q_delta)
 
     def indices(self, state):
 
@@ -119,6 +129,7 @@ class Learner(object):
         Q_delta = Q_target - self.Q[(sh,sw,sv,a)]
         # Add alpha*Q_delta to Q(s,a) and update
         self.Q[(sh,sw,sv,a)] = self.Q[(sh,sw,sv,a)] + (self.alpha * Q_delta)
+        self.mass_update(Q_delta, sh, sw, sv, a)
         #update global variables
         self.last_state = (h,w,v)
         self.last_action = new_action
